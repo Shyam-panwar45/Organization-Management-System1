@@ -616,7 +616,6 @@
             background: rgba(0, 188, 212, 0.08);
         }
 
-        /* UPDATED: Different colors for Full Day, Half Day, and Absent */
         .calendar-day.full-day {
             background: rgba(6, 206, 33, 0.429);
             border-color: var(--success);
@@ -684,7 +683,6 @@
             letter-spacing: 0.3px;
         }
 
-        /* REGISTRATION STYLES */
         .registration-screen {
             display: none;
             padding: 20px;
@@ -917,7 +915,6 @@
             color: var(--text-primary);
         }
 
-        /* VIEW REPORT MODAL - UPDATED */
         .view-modal {
             display: none;
             position: fixed;
@@ -965,7 +962,6 @@
             background-clip: text;
         }
 
-        /* UPDATED: Modal action buttons */
         .modal-actions {
             display: flex;
             gap: 10px;
@@ -1020,7 +1016,6 @@
             overflow-x: auto;
         }
 
-        /* Calendar Legend */
         .calendar-legend {
             display: flex;
             justify-content: center;
@@ -1252,7 +1247,6 @@
             <div class="page-header">
                 <h2 class="page-title">📅 Attendance Calendar</h2>
                 <div class="header-actions">
-                    <!-- UPDATED: Removed download button from here -->
                     <button class="btn-view" onclick="viewReport()">
                         <span>👁️</span>
                         <span>View Report</span>
@@ -1298,7 +1292,6 @@
                     <div class="calendar-day-header">Sat</div>
                 </div>
 
-                <!-- UPDATED: Added legend and half-day counter -->
                 <div class="calendar-legend">
                     <div class="legend-item">
                         <div class="legend-color full-day"></div>
@@ -1402,7 +1395,6 @@
             </div>
         </div>
 
-        <!-- VIEW REPORT MODAL - UPDATED with Download Button -->
         <div id="viewModal" class="view-modal">
             <div class="view-modal-content">
                 <div class="view-modal-header">
@@ -1427,7 +1419,7 @@
         // 🔥 CONFIGURATION
         // ========================================
         const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwtpgn4zlX_clmc_CMpxOZ_wOEehMl08Oqi2uccdp2YaeTlMkabppKFYZ15Bhp0D5WK/exec';
-        const ADMIN_PASSWORD = "admin123"; // ⚠️ CHANGE THIS PASSWORD!
+        const ADMIN_PASSWORD = "admin123";
 
         // ========================================
         // GLOBAL VARIABLES
@@ -1470,7 +1462,7 @@
         });
 
         // ========================================
-        // VIEW REPORT MODAL - UPDATED
+        // VIEW REPORT MODAL - UPDATED WITH resetUserActivity()
         // ========================================
         async function viewReport() {
             if (!currentStudent) {
@@ -1478,8 +1470,7 @@
                 return;
             }
 
-            lastActivityTime = Date.now();
-            isUserActive = true;
+            resetUserActivity();
 
             const uid = currentStudent.uid;
             const month = currentMonth;
@@ -1497,6 +1488,9 @@
 
                 document.getElementById('reportContent').textContent = reportText;
                 console.log('✅ Report loaded successfully');
+                
+                // ✅ Re-attach activity listeners to modal content
+                attachModalActivityListeners();
             } catch (error) {
                 console.error('❌ Error loading report:', error);
                 document.getElementById('reportContent').textContent = '❌ Failed to load report. Please try again.';
@@ -1505,15 +1499,32 @@
             startInactivityTimer();
         }
 
+        // ✅ NEW: Attach activity listeners to modal elements
+        function attachModalActivityListeners() {
+            const reportContent = document.getElementById('reportContent');
+            const viewModalContent = document.querySelector('.view-modal-content');
+            
+            if (reportContent) {
+                reportContent.addEventListener('scroll', resetUserActivity);
+                reportContent.addEventListener('mouseenter', resetUserActivity);
+                reportContent.addEventListener('mousemove', resetUserActivity);
+            }
+            
+            if (viewModalContent) {
+                viewModalContent.addEventListener('scroll', resetUserActivity);
+                viewModalContent.addEventListener('mouseenter', resetUserActivity);
+                viewModalContent.addEventListener('mousemove', resetUserActivity);
+            }
+        }
+
         function closeViewModal() {
             document.getElementById('viewModal').classList.remove('active');
-            lastActivityTime = Date.now();
-            isUserActive = true;
+            resetUserActivity();
             startInactivityTimer();
         }
 
         // ========================================
-        // DOWNLOAD REPORT FROM MODAL - NEW FUNCTION
+        // DOWNLOAD REPORT FROM MODAL - UPDATED WITH resetUserActivity()
         // ========================================
         function downloadReportFromModal() {
             if (!currentStudent) {
@@ -1521,8 +1532,7 @@
                 return;
             }
 
-            lastActivityTime = Date.now();
-            isUserActive = true;
+            resetUserActivity();
 
             const uid = currentStudent.uid;
             const month = currentMonth;
@@ -1601,9 +1611,8 @@
                     currentStudent = data.data.profile;
                     attendanceData = {};
                     
-                    // UPDATED: Store attendance data with exact status from Google Sheets
                     data.data.attendance.forEach(record => {
-                        attendanceData[record.date] = record.status; // Will be "Full Day", "Half Day", or "Absent"
+                        attendanceData[record.date] = record.status;
                     });
 
                     displayDashboard(data.data);
@@ -1654,17 +1663,50 @@
         }
 
         // ========================================
-        // ACTIVITY MONITORING
+        // ✅ NEW HELPER FUNCTION - Reset User Activity
+        // ========================================
+        function resetUserActivity() {
+            lastActivityTime = Date.now();
+            isUserActive = true;
+            console.log('⚡ User activity reset');
+        }
+
+        // ========================================
+        // ACTIVITY MONITORING - UPDATED WITH resetUserActivity()
         // ========================================
         function initActivityMonitoring() {
             const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
 
             activityEvents.forEach(event => {
                 document.addEventListener(event, () => {
-                    lastActivityTime = Date.now();
-                    isUserActive = true;
+                    resetUserActivity();
                 });
             });
+
+            // ✅ SPECIAL: Monitor activity inside modal content areas
+            // This ensures scrolling/reading reports counts as activity
+            const monitorModalActivity = () => {
+                const reportContent = document.getElementById('reportContent');
+                const viewModalContent = document.querySelector('.view-modal-content');
+                const attendancePage = document.getElementById('attendancePage');
+                
+                if (reportContent) {
+                    reportContent.addEventListener('scroll', resetUserActivity);
+                    reportContent.addEventListener('mouseenter', resetUserActivity);
+                }
+                
+                if (viewModalContent) {
+                    viewModalContent.addEventListener('scroll', resetUserActivity);
+                    viewModalContent.addEventListener('mouseenter', resetUserActivity);
+                }
+                
+                if (attendancePage) {
+                    attendancePage.addEventListener('scroll', resetUserActivity);
+                }
+            };
+
+            // Run after DOM is loaded
+            setTimeout(monitorModalActivity, 100);
         }
 
         function startInactivityTimer() {
@@ -1698,6 +1740,7 @@
 
             document.getElementById('employeeDashboard').classList.remove('active');
             document.getElementById('attendancePage').classList.remove('active');
+            document.getElementById('viewModal').classList.remove('active');
             document.getElementById('welcomeScreen').classList.add('active');
 
             currentStudent = null;
@@ -1858,7 +1901,7 @@
         }
 
         // ========================================
-        // CALENDAR FUNCTIONS - UPDATED
+        // CALENDAR FUNCTIONS - UPDATED WITH resetUserActivity()
         // ========================================
         function formatDateKey(date) {
             const year = date.getFullYear();
@@ -1881,8 +1924,7 @@
         }
 
         function viewAttendance() {
-            lastActivityTime = Date.now();
-            isUserActive = true;
+            resetUserActivity();
 
             document.getElementById('employeeDashboard').classList.remove('active');
             document.getElementById('attendancePage').classList.add('active');
@@ -1896,7 +1938,6 @@
             startInactivityTimer();
         }
 
-        // UPDATED: renderCalendar with proper color coding
         function renderCalendar() {
             const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
                 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -1937,7 +1978,6 @@
                 if (currentDate > today) {
                     dayDiv.classList.add('future');
                 } else {
-                    // UPDATED: Check exact status from Google Sheets
                     const status = attendanceData[dateStr];
                     
                     if (status === 'Full Day') {
@@ -1977,7 +2017,6 @@
             calculateCalendarSummary();
         }
 
-        // UPDATED: Calculate summary with separate Full Day and Half Day counts
         function calculateCalendarSummary() {
             const today = new Date();
             const lastDay = new Date(currentYear, currentMonth + 1, 0);
@@ -2018,8 +2057,7 @@
         }
 
         function previousMonth() {
-            lastActivityTime = Date.now();
-            isUserActive = true;
+            resetUserActivity();
 
             currentMonth--;
             if (currentMonth < 0) {
@@ -2030,11 +2068,11 @@
             document.getElementById('monthSelect').value = currentMonth;
             document.getElementById('yearSelect').value = currentYear;
             renderCalendar();
+            startInactivityTimer();
         }
 
         function nextMonth() {
-            lastActivityTime = Date.now();
-            isUserActive = true;
+            resetUserActivity();
 
             currentMonth++;
             if (currentMonth > 11) {
@@ -2045,37 +2083,34 @@
             document.getElementById('monthSelect').value = currentMonth;
             document.getElementById('yearSelect').value = currentYear;
             renderCalendar();
+            startInactivityTimer();
         }
 
         function changeMonth() {
-            lastActivityTime = Date.now();
-            isUserActive = true;
-
+            resetUserActivity();
             currentMonth = parseInt(document.getElementById('monthSelect').value);
             renderCalendar();
+            startInactivityTimer();
         }
 
         function changeYear() {
-            lastActivityTime = Date.now();
-            isUserActive = true;
-
+            resetUserActivity();
             currentYear = parseInt(document.getElementById('yearSelect').value);
             renderCalendar();
+            startInactivityTimer();
         }
 
         // ========================================
-        // MENU FUNCTIONS
+        // MENU FUNCTIONS - UPDATED WITH resetUserActivity()
         // ========================================
         function openLibrary() {
-            lastActivityTime = Date.now();
-            isUserActive = true;
+            resetUserActivity();
             startInactivityTimer();
             alert('📚 Library module coming soon!');
         }
 
         function openFees() {
-            lastActivityTime = Date.now();
-            isUserActive = true;
+            resetUserActivity();
             startInactivityTimer();
             alert('💰 Fees module coming soon!');
         }
@@ -2085,8 +2120,7 @@
         }
 
         function backToDashboard() {
-            lastActivityTime = Date.now();
-            isUserActive = true;
+            resetUserActivity();
 
             document.getElementById('attendancePage').classList.remove('active');
             document.getElementById('employeeDashboard').classList.add('active');
